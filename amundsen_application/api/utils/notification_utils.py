@@ -5,9 +5,12 @@ from http import HTTPStatus
 from flask import current_app as app
 from flask import jsonify, make_response, render_template, Response
 from typing import Dict, List
+from upstream.amundsen_application.models.user import dump_user, load_user
 
 from amundsen_application.api.exceptions import MailClientNotImplemented
+from amundsen_application.api.utils.request_utils import request_metadata
 
+USER_ENDPOINT = '/user'
 
 def send_notification(*, notification_type: str, options: Dict, recipients: List, sender: str) -> Response:
     """
@@ -24,7 +27,9 @@ def send_notification(*, notification_type: str, options: Dict, recipients: List
 
         notification_content = get_notification_content(
             notification_type=notification_type,
-            options=options
+            options=options,
+            recipients=recipients,
+            sender=sender
         )
 
         response = mail_client.send_email(
@@ -69,7 +74,7 @@ def get_mail_client():  # type: ignore
     return mail_client
 
 
-def get_notification_content(*, notification_type: str, options: Dict) -> Dict:
+def get_notification_content(*, notification_type: str, options: Dict, recipients: List, sender: str) -> Dict:
     """
     Returns a subject and a rendered html email template based off
     the input notification_type and data provided
@@ -77,6 +82,14 @@ def get_notification_content(*, notification_type: str, options: Dict) -> Dict:
     :param options: data necessary to render email template content
     :return: subject and html Dict
     """
+    user_id = recipients[0]
+    url = '{0}{1}/{2}'.format(app.config['METADATASERVICE_BASE'], USER_ENDPOINT, user_id)
+
+    recipient_name = request_metadata(url=url).json()['first_name']
+
+    url = '{0}{1}/{2}'.format(app.config['METADATASERVICE_BASE'], USER_ENDPOINT, sender)
+    sender_name = request_metadata(url=url).json()['full_name']
+
     notification_type_dict = {
         'added': {
             'subject': 'You have been added',
@@ -96,7 +109,7 @@ def get_notification_content(*, notification_type: str, options: Dict) -> Dict:
         },
     }
 
-    html = render_template(notification_type_dict.get(notification_type, {}).get('html'), form_data=options)
+    html = render_template(notification_type_dict.get(notification_type, {}).get('html'), options=options, recipient_name=recipient_name, sender_name=sender_name)
 
     return {
         'subject': notification_type_dict[notification_type]['subject'],
