@@ -26,7 +26,7 @@ def feedback() -> Response:
     try:
         logging.info('About to convert form request to dictionary')
         data = request.form.to_dict()
-        logging.info('Converted form request to dictionary')')
+        logging.info('Converted form request to dictionary')
         text_content = '\r\n'.join('{}:\r\n{}\r\n'.format(key, val) for key, val in data.items())
         logging.info('Generated text content')
         html_content = render_template('email.html', form_data=data)
