@@ -17,16 +17,20 @@ mail_blueprint = Blueprint('mail', __name__, url_prefix='/api/mail/v0')
 def feedback() -> Response:
     """ An instance of BaseMailClient client must be configured on MAIL_CLIENT """
     mail_client = app.config['MAIL_CLIENT']
-
+    logging.info('Got the mail client')
     if not mail_client:
         message = 'An instance of BaseMailClient client must be configured on MAIL_CLIENT'
         logging.exception(message)
         return make_response(jsonify({'msg': message}), HTTPStatus.NOT_IMPLEMENTED)
 
     try:
+        logging.info('About to convert form request to dictionary')
         data = request.form.to_dict()
+        logging.info('Converted form request to dictionary')')
         text_content = '\r\n'.join('{}:\r\n{}\r\n'.format(key, val) for key, val in data.items())
+        logging.info('Generated text content')
         html_content = render_template('email.html', form_data=data)
+        logging.info('Generated html content')
 
         # action logging
         feedback_type = data.get('feedback-type')
@@ -36,8 +40,11 @@ def feedback() -> Response:
         repro_steps = data.get('repro-steps')
         feature_summary = data.get('feature-summary')
         value_prop = data.get('value-prop')
+        logging.info('Pulled almost all the data from the dict')
         subject = data.get('subject') or data.get('feedback-type')
+        logging.info('Pulled all the data from the dict')
 
+        logging.info('About to call action log')
         _feedback(feedback_type=feedback_type,
                   rating=rating,
                   comment=comment,
@@ -49,6 +56,7 @@ def feedback() -> Response:
 
         response = mail_client.send_email(subject=subject, text=text_content, html=html_content, optional_data=data)
         status_code = response.status_code
+        logging.info('No problems')
 
         if status_code == HTTPStatus.OK:
             message = 'Success'
